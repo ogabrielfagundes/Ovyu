@@ -38,10 +38,8 @@ class AuthRepository(
             return@withContext AuthResult.Error("Informe um e-mail válido.")
         }
 
-        if (password.length < MIN_PASSWORD_LENGTH) {
-            return@withContext AuthResult.Error(
-                "A senha deve ter pelo menos $MIN_PASSWORD_LENGTH caracteres."
-            )
+        passwordProblem(password)?.let { problem ->
+            return@withContext AuthResult.Error("$problem.")
         }
 
         if (patientDao.getByEmail(normalizedEmail) != null) {
@@ -136,6 +134,21 @@ class AuthRepository(
 
     companion object {
         const val MIN_PASSWORD_LENGTH = 8
+
+        /**
+         * Política de senha usada no cadastro (tela e repositório).
+         * Retorna o motivo da recusa ou null se a senha for aceita.
+         */
+        fun passwordProblem(password: String): String? = when {
+            password.length < MIN_PASSWORD_LENGTH ->
+                "A senha deve ter pelo menos $MIN_PASSWORD_LENGTH caracteres"
+            password.none { it.isLetter() } || password.none { it.isDigit() } ->
+                "A senha deve ter letras e números"
+            password.all { it == password[0] } ->
+                "A senha não pode repetir o mesmo caractere"
+            else -> null
+        }
+
         private const val ITERATIONS = 120_000
         private const val KEY_LENGTH = 256
     }

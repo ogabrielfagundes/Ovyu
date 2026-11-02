@@ -208,8 +208,13 @@ fun RegisterContent(
         DateField(
             label = "Data de início *",
             date = state.startDate,
-            onDateSelected = { d -> d?.let { picked -> onChange { it.copy(startDate = picked) } } },
-            yearRange = 1900..LocalDate.now().year
+            onDateSelected = { d ->
+                d?.let { picked -> onChange { it.copy(startDate = picked, startDateError = false) } }
+            },
+            yearRange = 1900..LocalDate.now().year,
+            maxDate = LocalDate.now(),
+            isError = state.startDateError,
+            errorText = "A data de início não pode ser no futuro."
         )
 
         Spacer(modifier = Modifier.height(12.dp))

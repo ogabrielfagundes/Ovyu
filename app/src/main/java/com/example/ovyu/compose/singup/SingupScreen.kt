@@ -115,6 +115,8 @@ fun SignupContent(
     var confirmVisible by rememberSaveable { mutableStateOf(false) }
     var showTerms by rememberSaveable { mutableStateOf(false) }
     var showPrivacy by rememberSaveable { mutableStateOf(false) }
+    // Depois da primeira tentativa de cadastro, os campos vazios passam a mostrar o erro.
+    var submitted by rememberSaveable { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -127,15 +129,32 @@ fun SignupContent(
     }
 
     val passwordsMatch = password == confirmPassword
-    val passwordTooShort = password.isNotEmpty() &&
-            password.length < AuthRepository.MIN_PASSWORD_LENGTH
-    val canSubmit = username.isNotBlank() &&
-            email.isNotBlank() &&
-            password.isNotBlank() &&
-            !passwordTooShort &&
-            passwordsMatch &&
-            acceptedTerms &&
-            !isLoading
+    val passwordProblem = AuthRepository.passwordProblem(password)
+
+    val nameError = if (submitted && username.isBlank()) "Informe seu nome" else null
+    val emailError = if (submitted && email.isBlank()) "Informe seu e-mail" else null
+    val passwordError = when {
+        password.isNotEmpty() -> passwordProblem
+        submitted -> "Crie uma senha"
+        else -> null
+    }
+    val confirmError = when {
+        confirmPassword.isNotEmpty() && !passwordsMatch -> "As senhas não coincidem"
+        submitted && confirmPassword.isEmpty() -> "Confirme a senha"
+        else -> null
+    }
+    val termsError = submitted && !acceptedTerms
+
+    fun trySubmit() {
+        submitted = true
+        val valid = username.isNotBlank() &&
+                email.isNotBlank() &&
+                passwordProblem == null &&
+                confirmPassword.isNotEmpty() &&
+                passwordsMatch &&
+                acceptedTerms
+        if (valid) onSignupClick(username.trim(), email.trim(), password)
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -178,7 +197,9 @@ fun SignupContent(
                     username = it
                     onInputChanged()
                 },
-                placeholder = "Nome",
+                placeholder = "Nome *",
+                isError = nameError != null,
+                errorText = nameError,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
             )
             Spacer(Modifier.height(12.dp))
@@ -189,7 +210,9 @@ fun SignupContent(
                     email = it
                     onInputChanged()
                 },
-                placeholder = "E-mail",
+                placeholder = "E-mail *",
+                isError = emailError != null,
+                errorText = emailError,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -203,12 +226,12 @@ fun SignupContent(
                     password = it
                     onInputChanged()
                 },
-                placeholder = "Senha",
+                placeholder = "Senha *",
                 isPassword = true,
                 passwordVisible = passwordVisible,
                 onToggleVisibility = { passwordVisible = !passwordVisible },
-                isError = passwordTooShort,
-                errorText = "Use pelo menos ${AuthRepository.MIN_PASSWORD_LENGTH} caracteres",
+                isError = passwordError != null,
+                errorText = passwordError,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Next
@@ -222,12 +245,12 @@ fun SignupContent(
                     confirmPassword = it
                     onInputChanged()
                 },
-                placeholder = "Confirmar senha",
+                placeholder = "Confirmar senha *",
                 isPassword = true,
                 passwordVisible = confirmVisible,
                 onToggleVisibility = { confirmVisible = !confirmVisible },
-                isError = confirmPassword.isNotEmpty() && !passwordsMatch,
-                errorText = "As senhas não coincidem",
+                isError = confirmError != null,
+                errorText = confirmError,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
@@ -241,6 +264,23 @@ fun SignupContent(
                 onCheckedChange = { acceptedTerms = it },
                 onTermsClick = { showTerms = true },
                 onPrivacyClick = { showPrivacy = true }
+            )
+
+            if (termsError) {
+                Text(
+                    text = "Aceite os Termos de Uso e a Política de Privacidade para continuar.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "* Campos obrigatórios",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth()
             )
 
             if (errorMessage != null) {
@@ -257,9 +297,10 @@ fun SignupContent(
 
             GradientButton(
                 text = "Cadastrar",
-                enabled = canSubmit,
+                // Fica sempre ativo: ao tocar, valida e mostra o que falta preencher.
+                enabled = !isLoading,
                 isLoading = isLoading,
-                onClick = { onSignupClick(username.trim(), email.trim(), password) }
+                onClick = { trySubmit() }
             )
 
             Spacer(Modifier.height(16.dp))

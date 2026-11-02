@@ -67,6 +67,7 @@ data class AppointmentFormState(
     val status: String = AppointmentStatus.SCHEDULED,
     val doctorError: Boolean = false,
     val specialtyError: Boolean = false,
+    val dateError: Boolean = false,
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val finished: Boolean = false
@@ -123,9 +124,19 @@ class AppointmentFormViewModel(
         val s = _state.value
         val doctorError = s.doctor.isBlank()
         val specialtyError = s.specialty.isBlank()
+        // Uma consulta "Agendada" precisa estar no futuro. Consultas que já aconteceram
+        // devem ser registradas como "Realizada" ou "Cancelada".
+        val dateError = s.status == AppointmentStatus.SCHEDULED &&
+                LocalDateTime.of(s.date, s.time).isBefore(LocalDateTime.now())
 
-        if (doctorError || specialtyError) {
-            _state.update { it.copy(doctorError = doctorError, specialtyError = specialtyError) }
+        if (doctorError || specialtyError || dateError) {
+            _state.update {
+                it.copy(
+                    doctorError = doctorError,
+                    specialtyError = specialtyError,
+                    dateError = dateError
+                )
+            }
             return
         }
 

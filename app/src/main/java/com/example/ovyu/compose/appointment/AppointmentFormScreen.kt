@@ -105,8 +105,21 @@ fun AppointmentFormContent(
         DateField(
             label = "Data *",
             date = state.date,
-            onDateSelected = { d -> d?.let { picked -> onChange { it.copy(date = picked) } } },
-            yearRange = (LocalDate.now().year - 5)..(LocalDate.now().year + 5)
+            onDateSelected = { d ->
+                d?.let { picked ->
+                    onChange {
+                        // Data já passou: sugere "Realizada" em vez de deixar como "Agendada".
+                        val status = if (picked.isBefore(LocalDate.now()) &&
+                            it.status == AppointmentStatus.SCHEDULED
+                        ) AppointmentStatus.DONE else it.status
+                        it.copy(date = picked, status = status, dateError = false)
+                    }
+                }
+            },
+            yearRange = (LocalDate.now().year - 5)..(LocalDate.now().year + 5),
+            isError = state.dateError,
+            errorText = "Uma consulta agendada precisa ter data e horário futuros. " +
+                    "Se ela já aconteceu, altere a situação para Realizada ou Cancelada."
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -114,7 +127,7 @@ fun AppointmentFormContent(
         TimeField(
             label = "Horário *",
             time = state.time,
-            onTimeSelected = { t -> onChange { it.copy(time = t) } }
+            onTimeSelected = { t -> onChange { it.copy(time = t, dateError = false) } }
         )
 
         Spacer(modifier = Modifier.height(22.dp))
@@ -148,15 +161,14 @@ fun AppointmentFormContent(
             maxLines = 4
         )
 
-        if (state.isEditing) {
-            Spacer(modifier = Modifier.height(12.dp))
-            DropdownField(
-                label = "Situação",
-                value = state.status,
-                options = AppointmentStatus.all,
-                onSelected = { s -> onChange { it.copy(status = s) } }
-            )
-        }
+        // A situação aparece também no cadastro, para permitir registrar consultas passadas.
+        Spacer(modifier = Modifier.height(12.dp))
+        DropdownField(
+            label = "Situação",
+            value = state.status,
+            options = AppointmentStatus.all,
+            onSelected = { s -> onChange { it.copy(status = s, dateError = false) } }
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 

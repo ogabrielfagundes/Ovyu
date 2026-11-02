@@ -25,6 +25,7 @@ data class SymptomFormState(
     val symptomError: Boolean = false,
     val categoryError: Boolean = false,
     val durationError: Boolean = false,
+    val startDateError: Boolean = false,
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val finished: Boolean = false
@@ -81,13 +82,16 @@ class SymptomFormViewModel(
         val symptomError = s.symptom.isBlank()
         val categoryError = s.category.isBlank()
         val durationError = s.duration.isBlank()
+        // Um sintoma é algo que o paciente já sente: o início não pode ser no futuro.
+        val startDateError = s.startDate.isAfter(LocalDate.now())
 
-        if (symptomError || categoryError || durationError) {
+        if (symptomError || categoryError || durationError || startDateError) {
             _state.update {
                 it.copy(
                     symptomError = symptomError,
                     categoryError = categoryError,
-                    durationError = durationError
+                    durationError = durationError,
+                    startDateError = startDateError
                 )
             }
             return

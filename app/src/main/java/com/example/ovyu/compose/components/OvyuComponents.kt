@@ -46,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -509,7 +510,9 @@ fun DateField(
     placeholder: String? = null,
     clearable: Boolean = false,
     isError: Boolean = false,
-    errorText: String? = null
+    errorText: String? = null,
+    minDate: LocalDate? = null,
+    maxDate: LocalDate? = null
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
@@ -539,7 +542,19 @@ fun DateField(
     if (showPicker) {
         val state = rememberDatePickerState(
             initialSelectedDateMillis = (date ?: LocalDate.now()).toPickerMillis(),
-            yearRange = yearRange
+            yearRange = yearRange,
+            selectableDates = object : SelectableDates {
+                // Bloqueia no calendário os dias fora do intervalo permitido (minDate..maxDate).
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val day = utcTimeMillis.fromPickerMillis()
+                    return (minDate == null || !day.isBefore(minDate)) &&
+                            (maxDate == null || !day.isAfter(maxDate))
+                }
+
+                override fun isSelectableYear(year: Int): Boolean =
+                    (minDate == null || year >= minDate.year) &&
+                            (maxDate == null || year <= maxDate.year)
+            }
         )
 
         DatePickerDialog(
