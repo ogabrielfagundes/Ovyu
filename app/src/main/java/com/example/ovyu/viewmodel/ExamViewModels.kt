@@ -58,6 +58,8 @@ data class ExamFormState(
     val status: String = ExamStatus.SCHEDULED,
     val result: String = "",
     val nameError: Boolean = false,
+    val dateError: Boolean = false,
+    val dateErrorText: String = "",
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val finished: Boolean = false
@@ -109,8 +111,18 @@ class ExamFormViewModel(
 
     fun save() {
         val s = _state.value
-        if (s.name.isBlank()) {
-            _state.update { it.copy(nameError = true) }
+        val nameError = s.name.isBlank()
+        val dateErrorText = examDateProblem(s.status, s.date)
+        val dateError = dateErrorText != null
+
+        if (nameError || dateError) {
+            _state.update {
+                it.copy(
+                    nameError = nameError,
+                    dateError = dateError,
+                    dateErrorText = dateErrorText.orEmpty()
+                )
+            }
             return
         }
 
@@ -140,4 +152,22 @@ class ExamFormViewModel(
             _state.update { it.copy(finished = true) }
         }
     }
+}
+
+/**
+ * Mesma regra das consultas, por dia: "Agendado" não pode ser antes de hoje e
+ * "Realizado" não pode ser depois de hoje (não existe resultado de exame futuro).
+ */
+fun examDateProblem(
+    status: String,
+    date: LocalDate,
+    today: LocalDate = LocalDate.now()
+): String? = when {
+    status == ExamStatus.SCHEDULED && date.isBefore(today) ->
+        "Um exame agendado não pode ter data passada. " +
+                "Se ele já foi feito, altere a situação para Realizado."
+    status == ExamStatus.DONE && date.isAfter(today) ->
+        "Um exame realizado não pode ter data futura. " +
+                "Se ele ainda vai acontecer, altere a situação para Agendado."
+    else -> null
 }

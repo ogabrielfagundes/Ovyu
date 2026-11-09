@@ -108,18 +108,23 @@ fun AppointmentFormContent(
             onDateSelected = { d ->
                 d?.let { picked ->
                     onChange {
-                        // Data já passou: sugere "Realizada" em vez de deixar como "Agendada".
-                        val status = if (picked.isBefore(LocalDate.now()) &&
-                            it.status == AppointmentStatus.SCHEDULED
-                        ) AppointmentStatus.DONE else it.status
+                        // Sugere a situação coerente com a data escolhida:
+                        // data passada -> "Realizada"; data futura -> "Agendada".
+                        val today = LocalDate.now()
+                        val status = when {
+                            picked.isBefore(today) && it.status == AppointmentStatus.SCHEDULED ->
+                                AppointmentStatus.DONE
+                            picked.isAfter(today) && it.status == AppointmentStatus.DONE ->
+                                AppointmentStatus.SCHEDULED
+                            else -> it.status
+                        }
                         it.copy(date = picked, status = status, dateError = false)
                     }
                 }
             },
             yearRange = (LocalDate.now().year - 5)..(LocalDate.now().year + 5),
             isError = state.dateError,
-            errorText = "Uma consulta agendada precisa ter data e horário futuros. " +
-                    "Se ela já aconteceu, altere a situação para Realizada ou Cancelada."
+            errorText = state.dateErrorText
         )
 
         Spacer(modifier = Modifier.height(12.dp))

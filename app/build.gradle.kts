@@ -17,8 +17,8 @@ android {
         // 26+ porque o app usa java.time e PBKDF2WithHmacSHA256 sem desugaring.
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

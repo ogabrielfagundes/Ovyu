@@ -68,6 +68,7 @@ data class AppointmentFormState(
     val doctorError: Boolean = false,
     val specialtyError: Boolean = false,
     val dateError: Boolean = false,
+    val dateErrorText: String = "",
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val finished: Boolean = false
@@ -124,17 +125,18 @@ class AppointmentFormViewModel(
         val s = _state.value
         val doctorError = s.doctor.isBlank()
         val specialtyError = s.specialty.isBlank()
-        // Uma consulta "Agendada" precisa estar no futuro. Consultas que já aconteceram
-        // devem ser registradas como "Realizada" ou "Cancelada".
-        val dateError = s.status == AppointmentStatus.SCHEDULED &&
-                LocalDateTime.of(s.date, s.time).isBefore(LocalDateTime.now())
+        // Regra de data x situação: "Agendada" só no futuro, "Realizada" só no passado.
+        // "Cancelada" vale para qualquer data.
+        val dateErrorText = appointmentDateProblem(s.status, LocalDateTime.of(s.date, s.time))
+        val dateError = dateErrorText != null
 
         if (doctorError || specialtyError || dateError) {
             _state.update {
                 it.copy(
                     doctorError = doctorError,
                     specialtyError = specialtyError,
-                    dateError = dateError
+                    dateError = dateError,
+                    dateErrorText = dateErrorText.orEmpty()
                 )
             }
             return
@@ -167,4 +169,19 @@ class AppointmentFormViewModel(
             _state.update { it.copy(finished = true) }
         }
     }
+}
+
+/** Retorna o motivo pelo qual a data não combina com a situação da consulta, ou null se estiver ok. */
+fun appointmentDateProblem(
+    status: String,
+    dateTime: LocalDateTime,
+    now: LocalDateTime = LocalDateTime.now()
+): String? = when {
+    status == AppointmentStatus.SCHEDULED && dateTime.isBefore(now) ->
+        "Uma consulta agendada precisa ter data e horário futuros. " +
+                "Se ela já aconteceu, altere a situação para Realizada ou Cancelada."
+    status == AppointmentStatus.DONE && dateTime.isAfter(now) ->
+        "Uma consulta realizada não pode ter data e horário futuros. " +
+                "Se ela ainda vai acontecer, altere a situação para Agendada."
+    else -> null
 }

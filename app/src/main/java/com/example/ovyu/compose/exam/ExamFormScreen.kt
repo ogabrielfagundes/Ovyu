@@ -85,8 +85,25 @@ fun ExamFormContent(
         DateField(
             label = "Data *",
             date = state.date,
-            onDateSelected = { d -> d?.let { picked -> onChange { it.copy(date = picked) } } },
-            yearRange = (LocalDate.now().year - 10)..(LocalDate.now().year + 5)
+            onDateSelected = { d ->
+                d?.let { picked ->
+                    onChange {
+                        // Sugere a situação coerente com a data escolhida.
+                        val today = LocalDate.now()
+                        val status = when {
+                            picked.isBefore(today) && it.status == ExamStatus.SCHEDULED ->
+                                ExamStatus.DONE
+                            picked.isAfter(today) && it.status == ExamStatus.DONE ->
+                                ExamStatus.SCHEDULED
+                            else -> it.status
+                        }
+                        it.copy(date = picked, status = status, dateError = false)
+                    }
+                }
+            },
+            yearRange = (LocalDate.now().year - 10)..(LocalDate.now().year + 5),
+            isError = state.dateError,
+            errorText = state.dateErrorText
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -110,7 +127,7 @@ fun ExamFormContent(
             label = "Situação",
             value = state.status,
             options = ExamStatus.all,
-            onSelected = { s -> onChange { it.copy(status = s) } }
+            onSelected = { s -> onChange { it.copy(status = s, dateError = false) } }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
